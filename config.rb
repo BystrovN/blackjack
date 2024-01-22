@@ -1,0 +1,5 @@
+module Config
+  START_BALANCE = 100
+  DEATH_BALANCE = -1000
+  BANK_DEPOSIT = 10
+end
