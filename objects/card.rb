@@ -1,20 +1,6 @@
-class Card
-  RANK_VALUES = {
-    '2' => 2,
-    '3' => 3,
-    '4' => 4,
-    '5' => 5,
-    '6' => 6,
-    '7' => 7,
-    '8' => 8,
-    '9' => 9,
-    '10' => 10,
-    'J' => 10,
-    'Q' => 10,
-    'K' => 10,
-    'A' => 11
-  }.freeze
+require_relative '../config'
 
+class Card
   attr_reader :rank, :suit
 
   def initialize(rank, suit)
@@ -23,6 +9,10 @@ class Card
   end
 
   def value
-    RANK_VALUES[rank]
+    Config::RANK_VALUES[rank]
+  end
+
+  def inspect
+    "#{rank} - #{suit}"
   end
 end

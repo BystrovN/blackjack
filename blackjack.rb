@@ -1,7 +1,11 @@
 require_relative 'objects/user'
 require_relative 'objects/deck'
+require_relative 'config'
 
 class BlackJack
+  DEPOSIT = Config::BANK_DEPOSIT
+  DEALER_SUM_CARD_LIMIT = 17
+
   attr_reader :player, :dealer, :deck
   attr_accessor :bank
 
@@ -12,28 +16,123 @@ class BlackJack
     @bank = 0
   end
 
-  # В класс добавить методы:
-  #   - Начать игру. В нем в цыкле будут вызываться иные методы BlackJack, пока предполагаю:
-  #       - Сброс игры. Перемешывание карт и сброс банка до нуля
-  #       - Повышение банка на 20, снятие с баланса игроков по 10. То, на сколько снимать баланс с игроков и попалнять
-  #         банк вынесу в config.rb как константу.
-  #       - Раздача по две карты игрокам
-  #       - Показ в терминале карт игрока и их суммы. Карты дилера в виде **
-  #       - Ход игрока. Три варианта на выбор в соответствии с заданием.
-  #         - Ход дилера (только если игрок не выбрал "Открыть карты" на предыдущем шаге).
-  #           Добавляет карты пока сумма существующих менее 17 и карт на руке меньше 3.
-  #       - Если у каждого по три карты или если игрок выбрал "Открыть карты" ранее:
-  #            - Показ результатов и показ победителя. Распределение банка.
-  #         иначе
-  #           Возврат к ходу игрока
-  #       - Вопрос к игроку хочет ли он продолжить.
-  #         Да - переходим к началу цыкла если пользователь не дошел до death_balance. Предполагаю что дилер может уйти в любой минус.
-  #         Нет - exit
-  #
-  #   - хз может еще что-то
+  def start_game
+    loop do
+      reset_game
+      bank_deposit
+      deal_initial_cards
+      display_players_cards
+      turns
+      display_result
+      break unless play_again?
+    end
+  end
+
+  def reset_game
+    self.bank = 0
+    deck.return_cards_to_deck(*player.clear_hand, *dealer.clear_hand)
+    deck.shuffle!
+  end
+
+  def bank_deposit
+    self.bank += DEPOSIT * 2
+    player.balance -= DEPOSIT
+    dealer.balance -= DEPOSIT
+  end
+
+  def deal_initial_cards
+    2.times do
+      player.take_card(deck.pick_up_card)
+      dealer.take_card(deck.pick_up_card)
+    end
+  end
+
+  def display_players_cards(dealer_show: false)
+    puts "Рука игрока #{player.name}: #{player.cards}"
+    puts dealer_show ? "Рука дилера: #{dealer.cards}" : "Рука дилера: #{'*' * dealer.cards.length}"
+  end
+
+  def player_turn
+    puts 'Выбирите действие:'
+    puts ['1 - Пропустить', '2 - Добавить карту', '3 - Открыть карты']
+    choice = gets.chomp!.to_i
+
+    case choice
+    when 1
+      puts 'Ход пропущен'
+      choice
+    when 2
+      puts 'Больше взять карт нельзя' if player.take_card(deck.pick_up_card).nil?
+      choice
+    when 3
+      puts 'Открываем карты'
+      choice
+    else
+      puts 'Неверный выбор, попробуйте еще раз.'
+      player_turn
+    end
+  end
+
+  def dealer_turn
+    dealer.take_card(deck.pick_up_card) if dealer.sum_card < DEALER_SUM_CARD_LIMIT
+  end
+
+  def display_result
+    display_players_cards(dealer_show: true)
+
+    puts "Сумма карт игрока - #{player_score = player.sum_card}"
+    puts "Сумма карт дилера - #{dealer_score = dealer.sum_card}"
+
+    if player_score > 21 || (dealer_score <= 21 && dealer_score > player_score)
+      puts 'Дилер выиграл'
+      dealer.balance += bank
+    elsif dealer_score > 21 || (player_score <= 21 && player_score > dealer_score)
+      puts 'Вы выиграли'
+      player.balance += bank
+    else
+      puts 'Ничья'
+      player.balance += DEPOSIT
+      dealer.balance += DEPOSIT
+    end
+
+    puts "Баланс игрока: $#{player.balance}, Баланс дилера: $#{dealer.balance}"
+  end
+
+  def play_again?
+    puts 'Желаете сыграть еще?'
+    puts ['1 - Да', '2 - Нет']
+    choice = gets.chomp!.to_i
+
+    case choice
+    when 1
+      return true if player.possible_to_play?
+
+      puts 'Продолжать игру невозможно. Вы уже все проиграли.'
+      false
+    when 2
+      false
+    else
+      puts 'Неверный выбор, попробуйте еще раз.'
+      play_again?
+    end
+  end
+
+  def turns
+    return if player.full_hand? && (dealer.full_hand? || dealer.sum_card >= DEALER_SUM_CARD_LIMIT)
+
+    player_choice = player_turn
+    case player_choice
+    when 3
+      nil
+    else
+      dealer_turn
+      turns
+    end
+  end
 end
 
 if __FILE__ == $PROGRAM_NAME
-  # Просим пользователя ввести имя
-  # Создаем инстанс BlackJack и вызываем метод для старта игры
+  print 'Ваше имя? - '
+  name = gets.chomp!
+  BlackJack.new(name).start_game
 end

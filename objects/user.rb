@@ -1,23 +1,58 @@
 require_relative '../config'
 
 class User
+  attr_reader :cards, :death_balance, :name
   attr_accessor :balance
 
   def initialize(name)
-    @name = name # запросим
+    @name = name
     @balance = Config::START_BALANCE
-    @cards = [] # При инициализации пустой массив
-    @death_balance = Config::DEATH_BALANCE # Думаю стоит прописать параметр баланса, ниже которого продолжение игры невозможно
+    @cards = []
+    @death_balance = Config::DEATH_BALANCE
   end
 
-  # В класс добавить методы:
-  #   - добавить карту в руку (если в руке меньше трех карт)
-  #   - показать карты на руке
-  #   - показать сумму карт на руке (в нем же учесть особенность веса туза)
-  #   - сбросить карты с руки
-  #   - проверка не опустился ли пользователь до баланса, ниже которого продолжение игры невозможно. Возможно это будет метод valid?
-  #   - проверка не полная ли у пользователя рука (false если в руке меньше трех карт)
-  #   - хз может еще что-то
-end
+  def take_card(card)
+    cards << card unless full_hand?
+  end
 
-# Для инстанса игрока и дилера предполагаю использовать один класс User, просто дилеру дать соответствующее имя.
+  def sum_card
+    points = 0
+    aces_count = 0
+    cards.each do |card|
+      if card.rank == 'A'
+        aces_count += 1
+        next
+      end
+
+      points += card.value
+    end
+
+    points += aces_sum(aces_count, points)
+  end
+
+  def clear_hand
+    used_cards = cards.dup
+    cards.clear
+    used_cards
+  end
+
+  def possible_to_play?
+    balance > death_balance
+  end
+
+  def full_hand?
+    cards.length >= 3
+  end
+
+  protected
+
+  attr_writer :cards
+
+  def aces_sum(aces_count, exist_points)
+    return 0 if aces_count.zero?
+
+    max_sum = 11 + (1 * (aces_count - 1))
+    min_sum = 1 * aces_count
+    max_sum + exist_points <= 21 ? max_sum : min_sum
+  end
+end
